@@ -104,12 +104,12 @@ parse_feature_group <- function(group) {
 }
 
 pattern_idx <- "(\\d+)"
-pattern_loc <- paste0("([<>])?", patt_idx)
+pattern_loc <- paste0("([<>])?", pattern_idx)
 fullstr <- function(...) paste0("^", ..., "$")
-pattern_single <- fullstr(patt_idx)
-pattern_site <- fullstr(patt_loc, "\\^", patt_loc)
-pattern_span <- fullstr(patt_loc, "\\.\\.", patt_loc)
-pattern_range <- fullstr(patt_loc, "\\.", patt_loc)
+pattern_single <- fullstr(pattern_idx)
+pattern_site <- fullstr(pattern_loc, "\\^", pattern_loc)
+pattern_span <- fullstr(pattern_loc, "\\.\\.", pattern_loc)
+pattern_range <- fullstr(pattern_loc, "\\.", pattern_loc)
 pattern_op <- fullstr("(\\w+)\\((.+)\\)")
 
 simple_op <- function(operator, start="", end="", start_open="", end_open="") {
@@ -197,5 +197,5 @@ lines <- c(
   "            Eukaryota; Fungi; Ascomycota; Saccharomycotina; Saccharomycetes;"
 )
 
-parse_lines(lines)
+
 

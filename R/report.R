@@ -2,7 +2,16 @@
 current_log_file <- NULL
 indents <- c()
 
-set_log_file <- function(file) {
+set_log_file <- function(filename) {
+  current_log_file <<- filename
+}
+
+start_log_file <- function(filename) {
+  current_log_file <<- filename
+  close(file(filename, open="w"))
+}
+
+append_log_file <- function(file) {
   current_log_file <<- file
 }
 
