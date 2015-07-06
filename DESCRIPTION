@@ -1,0 +1,26 @@
+Package: tnseqr
+Type: Package
+Title: Tn-seq processing and analysis
+Version: 1.0
+Date: 2015-05-10
+Author: Paul Jensen
+Maintainer: Paul Jensen <paul.jensen@bc.edu>
+Description: A complete pipeline for processing and analyzing Tn-seq experiments.
+  Functions include read trimming, mapping (via bowtie), normalization, and 
+  visualization.  Allows parallel processing and aggregation of samples from 
+  multiple conditions, strains, and mutant libraries.
+License: GPL (>= 2)
+Imports: 
+  dplyr,
+  GenomicRanges,
+  ggplot2,
+  parallel,
+  Rcpp (>= 0.11.5),
+  stringr,
+  tidyr,
+  ShortRead
+Depends:
+  magrittr
+Suggests:
+  GENE.E
+LinkingTo: Rcpp
