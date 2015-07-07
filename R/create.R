@@ -1,4 +1,5 @@
 
+#' @export
 print.tnseq <- function(tnseq) {
   cat("A Tn-seq experiment.")
 }
@@ -17,9 +18,11 @@ print.tnseq <- function(tnseq) {
 #' get_path(tnseq, dir="split")
 #' get_path(tnseq, file="lane1.fastq", dir="input")
 #' 
+#' @seealso \code{\link{change_path}}
+#' 
 #' @export
-get_path <- function(tnseq, file, dir) UseMethod("get_path")
-get_path <- function(tnseq, file=NA, dir=NA) {
+get_path <- function(tnseq, ...) UseMethod("get_path")
+get_path.tnseq <- function(tnseq, file=NA, dir=NA) {
   path <- tnseq$path$path
   if (!is.na(dir)) {
     path <- paste0(path, tnseq$path[[dir]])
@@ -28,6 +31,26 @@ get_path <- function(tnseq, file=NA, dir=NA) {
     path <- paste0(path, file)
   }
   return(path)
+}
+
+#' Change the path for a \code{tnseq} directory.
+#' 
+#' @param tnseq A \code{tnseq} object.
+#' @param newpath String with location of new directory.
+#' @return The modified \code{tnseq} object.
+#' 
+#' A \code{tnseq} object stores the path given in 
+#' \code{\link{create_tnseq_experiment}} to locate experiment files.  When 
+#' renaming a tnseq directory, use this command to update the \code{tnseq} 
+#' object.
+#' 
+#' @seealso \code{\link{get_path}}
+#' 
+#' @export
+change_path <- function(tnseq, ...) UseMethod("change_path")
+change_path.tnseq <- function(tnseq, newpath) {
+  tnseq$path$path <- check_path_ending(newpath)
+  return(tnseq)
 }
 
 # ============ internal commands for setting up tnseqr dirs ===================
@@ -64,6 +87,7 @@ create_dir <- function(dirname, path=NA) {
 #' Create empty Tn-seq directory with sample files.
 #' 
 #' @param path Directory to be created.
+#' @seealso \code{\link{create_tnseq_experiment}}
 #' 
 #' @export
 create_tnseq_directory <- function(path) {
@@ -152,18 +176,5 @@ create_tnseq_experiment <- function(path) {
   lapply(tnseq$filelog$input$file, report)
   unindent_report()
   
-  return(tnseq)
-}
-
-#' Change the path for a \code{tnseq} directory.
-#' 
-#' @param tnseq A \code{tnseq} object.
-#' @param newpath String with location of new directory.
-#' @return The modified \code{tnseq} object.
-#' 
-#' @export
-change_path <- function(tnseq, newpath) UseMethod("change_path")
-change_path.tnseq <- function(tnseq, newpath) {
-  tnseq$path$path <- check_path_ending(newpath)
   return(tnseq)
 }

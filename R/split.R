@@ -38,22 +38,33 @@ match_barcodes <- function(dnas, barcodes, mismatches=0) {
 #' @param tnseq A tnseq object.
 #' @return A tnseq object with updated filelog.
 #' @export
-split_inputs <- function(tnseq) {
+split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE) {
   barcodes <- tnseq$barcodes
   
   split_fastq_file <- function(lane, fastq) {
     start_log_file(get_path(tnseq, dir="log", 
                             file=paste0("split_", lane, ".log")))
     ptm <- proc.time()  # start timing
-    build_hashes(barcodes)
+    
+    if (dump_fails) {
+      build_hashes(c(barcodes, "FAILS"))
+    } else {
+      build_hashes(barcodes)
+    }
     
     total_reads <- 0
     total_matched <- 0
     fails <- integer(length(barcodes))
-    #full_fails <- 0
+    
+    n_cycles <- 0
     
     streamer <- ShortRead::FastqStreamer(fastq)
     repeat {
+      n_cycles <- n_cycles + 1
+      if (!is.na(max_cycles) && n_cycles > max_cycles) {
+        break
+      } 
+      
       fq <- ShortRead::yield(streamer)
       if (length(fq) == 0) {
         break
@@ -86,7 +97,12 @@ split_inputs <- function(tnseq) {
           ShortRead::sread()
         assignments <- match_barcodes(barcode_strings, barcodes)
         fails <- fails + colSums(assignments)
-        #full_fails <- full_fails + sum(as.integer(rowSums(assignments) == 0))
+        
+        if (dump_fails) {
+          add_keys("FAILS", trimmed[!matched] %>% 
+                              ShortRead::sread() %>% 
+                              as.character())
+        }
       }
     }
     
@@ -101,8 +117,6 @@ split_inputs <- function(tnseq) {
     files <- get_path(tnseq, dir="split", file=fileends)
     reads <- integer(length(barcodes))
     
-    
-    
     for (i in seq_along(barcodes)) {
       reads[i] <- write_hash_to_file(barcodes[i], path.expand(files[i]))
       reportf("%9i %5.2f%%   %10s  [%s]  %5.2f%%", reads[i], 
@@ -110,15 +124,24 @@ split_inputs <- function(tnseq) {
               names(barcodes)[i], barcodes[i],
               fails[i]/(reads[i]+fails[i])*100)
     }
-    erase_hashes(barcodes)
     
     unsplit <- total_matched - sum(reads)
     reportf("%9i %5.2f%%    unmatched", unsplit, unsplit/total_matched*100)
-    #reportf("%9i  -----    non-Tn", full_fails)
     unindent_report()
     elapsed <- proc.time() - ptm
     reportf("Elapsed time for file splitting: %.2f seconds.", elapsed[1])
+    
+    if (dump_fails) {
+      failfile <- get_path(tnseq, dir="split", 
+                           file=paste0(lane, "_", "FAILS.fasta"))
+      write_hash_to_file("FAILS", path.expand(failfile))
+      reportf("Match failures written to file %s.", failfile)
+    }
+    
     set_log_file(NULL)
+    
+    erase_hashes(barcodes)
+    if (dump_fails) erase_hashes("FAILS")
     
     df <- data.frame(lane=lane, barcode=names(barcodes), 
                      file=files, reads=reads)

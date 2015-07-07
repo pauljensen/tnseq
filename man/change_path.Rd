@@ -4,7 +4,7 @@
 \alias{change_path}
 \title{Change the path for a \code{tnseq} directory.}
 \usage{
-change_path(tnseq, newpath)
+change_path(tnseq)
 }
 \arguments{
 \item{tnseq}{A \code{tnseq} object.}
@@ -13,8 +13,16 @@ change_path(tnseq, newpath)
 }
 \value{
 The modified \code{tnseq} object.
+
+A \code{tnseq} object stores the path given in
+\code{\link{create_tnseq_experiment}} to locate experiment files.  When
+renaming a tnseq directory, use this command to update the \code{tnseq}
+object.
 }
 \description{
 Change the path for a \code{tnseq} directory.
+}
+\seealso{
+\code{\link{create_tnseq_experiment}}
 }
 

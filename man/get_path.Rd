@@ -4,7 +4,7 @@
 \alias{get_path}
 \title{Return paths for experiment files and directories.}
 \usage{
-get_path(tnseq, file = NA, dir = NA)
+get_path(tnseq)
 }
 \arguments{
 \item{tnseq}{A \code{tnseq} object.}
