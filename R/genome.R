@@ -188,6 +188,9 @@ parse_genbank <- function(file) {
   ret$features <- c(sapply(features[-1], function(x) substr(x, 6, 80)), "//") %>%
     break_by_keywords() %>% lapply(parse_feature_group)
   
+  ret$features <- group_list(ret$features, keyfun=function(x) x$name,
+                             valfun=function(x) x[names(x) != "name"])
+  
   return(ret)
 }
 

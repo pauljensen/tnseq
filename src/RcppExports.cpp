@@ -7,7 +7,7 @@ using namespace Rcpp;
 
 // build_hashes
 void build_hashes(CharacterVector outer_keys);
-RcppExport SEXP tnseqr_build_hashes(SEXP outer_keysSEXP) {
+RcppExport SEXP tnseq_build_hashes(SEXP outer_keysSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope __rngScope;
     Rcpp::traits::input_parameter< CharacterVector >::type outer_keys(outer_keysSEXP);
@@ -17,7 +17,7 @@ END_RCPP
 }
 // erase_hashes
 void erase_hashes(CharacterVector outer_keys);
-RcppExport SEXP tnseqr_erase_hashes(SEXP outer_keysSEXP) {
+RcppExport SEXP tnseq_erase_hashes(SEXP outer_keysSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope __rngScope;
     Rcpp::traits::input_parameter< CharacterVector >::type outer_keys(outer_keysSEXP);
@@ -27,7 +27,7 @@ END_RCPP
 }
 // add_keys
 void add_keys(std::string outer, CharacterVector keys);
-RcppExport SEXP tnseqr_add_keys(SEXP outerSEXP, SEXP keysSEXP) {
+RcppExport SEXP tnseq_add_keys(SEXP outerSEXP, SEXP keysSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope __rngScope;
     Rcpp::traits::input_parameter< std::string >::type outer(outerSEXP);
@@ -38,7 +38,7 @@ END_RCPP
 }
 // get_values
 NumericVector get_values(std::string outer, CharacterVector keys);
-RcppExport SEXP tnseqr_get_values(SEXP outerSEXP, SEXP keysSEXP) {
+RcppExport SEXP tnseq_get_values(SEXP outerSEXP, SEXP keysSEXP) {
 BEGIN_RCPP
     Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;
@@ -50,7 +50,7 @@ END_RCPP
 }
 // write_hash_to_file
 int write_hash_to_file(std::string outer_key, std::string filename);
-RcppExport SEXP tnseqr_write_hash_to_file(SEXP outer_keySEXP, SEXP filenameSEXP) {
+RcppExport SEXP tnseq_write_hash_to_file(SEXP outer_keySEXP, SEXP filenameSEXP) {
 BEGIN_RCPP
     Rcpp::RObject __result;
     Rcpp::RNGScope __rngScope;

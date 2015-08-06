@@ -76,7 +76,7 @@ split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE) {
         ShortRead::trimLRPatterns(Rpattern=Biostrings::DNAString("TAACAG"), 
                                   subject=., 
                                   max.Rmismatch=c(-1,-1,1,1,1,1))
-      matched <- ShortRead::width(trimmed) <= 21
+      matched <- ShortRead::width(trimmed) < 25
       total_matched <- total_matched + sum(as.integer(matched))
       passed <- trimmed[matched]
       

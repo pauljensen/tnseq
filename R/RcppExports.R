@@ -2,22 +2,22 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 build_hashes <- function(outer_keys) {
-    invisible(.Call('tnseqr_build_hashes', PACKAGE = 'tnseqr', outer_keys))
+    invisible(.Call('tnseq_build_hashes', PACKAGE = 'tnseq', outer_keys))
 }
 
 erase_hashes <- function(outer_keys) {
-    invisible(.Call('tnseqr_erase_hashes', PACKAGE = 'tnseqr', outer_keys))
+    invisible(.Call('tnseq_erase_hashes', PACKAGE = 'tnseq', outer_keys))
 }
 
 add_keys <- function(outer, keys) {
-    invisible(.Call('tnseqr_add_keys', PACKAGE = 'tnseqr', outer, keys))
+    invisible(.Call('tnseq_add_keys', PACKAGE = 'tnseq', outer, keys))
 }
 
 get_values <- function(outer, keys) {
-    .Call('tnseqr_get_values', PACKAGE = 'tnseqr', outer, keys)
+    .Call('tnseq_get_values', PACKAGE = 'tnseq', outer, keys)
 }
 
 write_hash_to_file <- function(outer_key, filename) {
-    .Call('tnseqr_write_hash_to_file', PACKAGE = 'tnseqr', outer_key, filename)
+    .Call('tnseq_write_hash_to_file', PACKAGE = 'tnseq', outer_key, filename)
 }
 
