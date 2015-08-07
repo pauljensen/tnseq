@@ -4,7 +4,7 @@
 \alias{get_path}
 \title{Return paths for experiment files and directories.}
 \usage{
-get_path(tnseq)
+get_path(tnseq, ...)
 }
 \arguments{
 \item{tnseq}{A \code{tnseq} object.}
@@ -24,5 +24,8 @@ Return paths for experiment files and directories.
 \examples{
 get_path(tnseq, dir="split")
 get_path(tnseq, file="lane1.fastq", dir="input")
+}
+\seealso{
+\code{\link{change_path}}
 }
 

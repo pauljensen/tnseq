@@ -12,4 +12,7 @@ create_tnseq_directory(path)
 \description{
 Create empty Tn-seq directory with sample files.
 }
+\seealso{
+\code{\link{create_tnseq_experiment}}
+}
 

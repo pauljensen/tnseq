@@ -38,7 +38,8 @@ match_barcodes <- function(dnas, barcodes, mismatches=0) {
 #' @param tnseq A tnseq object.
 #' @return A tnseq object with updated filelog.
 #' @export
-split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE) {
+split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE,
+                         match_transposon_sequence=FALSE, quality=NA) {
   barcodes <- tnseq$barcodes
   
   split_fastq_file <- function(lane, fastq) {
@@ -53,10 +54,13 @@ split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE) {
     }
     
     total_reads <- 0
-    total_matched <- 0
-    fails <- integer(length(barcodes))
-    
     n_cycles <- 0
+    
+    nbc <- length(barcodes)
+    stats <- data.frame(reads=integer(nbc),
+                        matched_tn=integer(nbc),
+                        quality=integer(nbc))
+    rownames(stats) <- barcodes
     
     streamer <- ShortRead::FastqStreamer(fastq)
     repeat {
@@ -71,88 +75,112 @@ split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE) {
       }
       total_reads <- total_reads + length(fq)
       
-      trimmed <- fq %>%
-        ShortRead::narrow(start=10, end=34) %>%
-        ShortRead::trimLRPatterns(Rpattern=Biostrings::DNAString("TAACAG"), 
-                                  subject=., 
-                                  max.Rmismatch=c(-1,-1,1,1,1,1))
-      matched <- ShortRead::width(trimmed) < 25
-      total_matched <- total_matched + sum(as.integer(matched))
-      passed <- trimmed[matched]
-      
-      barcode_strings <- passed %>% 
+      trimmed <- fq %>% ShortRead::narrow(start=10, end=34)
+      barcode_strings <- trimmed %>%
         ShortRead::narrow(start=1, end=6) %>%
         ShortRead::sread()
       assignments <- match_barcodes(barcode_strings, barcodes)
       for (code in barcodes) {
-        keys <- passed[assignments[ ,code]] %>% 
-          ShortRead::sread() %>% 
-          as.character()
+        reads <- trimmed[assignments[ ,code]] %>%
+          ShortRead::narrow(start=7, end=25)  # remove barcode
+        stats[code,"reads"] <- stats[code,"reads"] + length(reads)
+        
+        if (match_transposon_sequence) {
+          # matching here
+          tn_sequence <- Biostrings::DNAString("TAACAG")
+          reads %<>% ShortRead::trimLRPatterns(Rpattern=tn_sequence, 
+                                               subject=., 
+                                               max.Rmismatch=c(-1,-1,1,1,1,1))
+          reads <- reads[ShortRead::width(reads) < 19]
+        } else {
+          reads %<>% ShortRead::narrow(start=1, end=12)
+        }
+        stats[code,"matched_tn"] <- stats[code,"matched_tn"] + length(reads)
+        
+        if (!is.na(quality)) {
+          # filter reads for quality
+          mean_quality <- rowMeans(as(quality(reads), "matrix"), na.rm=T)
+          reads <- reads[mean_quality > quality]
+        }
+        stats[code,"quality"] <- stats[code,"quality"] + length(reads)
+        
+        keys <- reads %>% ShortRead::sread() %>% as.character()
         add_keys(code, keys)
       }
-      
-      if (any(!matched)) {
-        barcode_strings <- trimmed[!matched] %>%
-          ShortRead::narrow(start=1, end=6) %>%
-          ShortRead::sread()
-        assignments <- match_barcodes(barcode_strings, barcodes)
-        fails <- fails + colSums(assignments)
-        
-        if (dump_fails) {
-          add_keys("FAILS", trimmed[!matched] %>% 
-                              ShortRead::sread() %>% 
-                              as.character())
-        }
+      close(streamer)
+
+      if (dump_fails) {
+        fails <- colSums(assignments) == 0
+        add_keys("FAILS", fq %>% ShortRead::sread() %>% as.character())
       }
+      
+      tnseq$reads <<- reads
     }
-    
-    reportf("Processing lane %s (%s).", lane, fastq)
-    indent_report()
-    reportf("%i total reads, %i (%.2f%%) with valid sequence.",
-            total_reads, total_matched, total_matched/total_reads*100)
-    report("Distribution of valid reads:")
-    report("    Reads  %total    Barcode              %no-Tn")
     
     fileends <- paste0(lane, "_", names(barcodes), ".fasta")
     files <- get_path(tnseq, dir="split", file=fileends)
-    reads <- integer(length(barcodes))
-    
     for (i in seq_along(barcodes)) {
-      reads[i] <- write_hash_to_file(barcodes[i], path.expand(files[i]))
-      reportf("%9i %5.2f%%   %10s  [%s]  %5.2f%%", reads[i], 
-              reads[i]/total_matched*100, 
-              names(barcodes)[i], barcodes[i],
-              fails[i]/(reads[i]+fails[i])*100)
+      write_hash_to_file(barcodes[i], path.expand(files[i]))
     }
-    
-    unsplit <- total_matched - sum(reads)
-    reportf("%9i %5.2f%%    unmatched", unsplit, unsplit/total_matched*100)
-    unindent_report()
-    elapsed <- proc.time() - ptm
-    reportf("Elapsed time for file splitting: %.2f seconds.", elapsed[1])
-    
     if (dump_fails) {
       failfile <- get_path(tnseq, dir="split", 
                            file=paste0(lane, "_", "FAILS.fasta"))
       write_hash_to_file("FAILS", path.expand(failfile))
-      reportf("Match failures written to file %s.", failfile)
     }
+    
+    # ==================== reporting ============================
+    
+    reportf("Processing lane %s (%s).", lane, fastq)
+    indent_report()
+    reportf("%i total reads.", total_reads)
+    if (!is.na(max_cycles))
+      reportf("%i FASTQ streamer cycles processed.", max_cycles)
+    if (match_transposon_sequence)
+      reportf("Reads were filtered by matching against Tn sequence.")
+    if (!is.na(quality))
+      reportf("Reads were quality filtered (Q >= %i).", quality)
+    
+    demux_fails <- total_reads - sum(stats$reads)
+    reportf("Demultiplexing failed for %i reads (%.2f%%).", 
+            demux_fails, demux_fails / total_reads * 100)
+    
+    elapsed <- proc.time() - ptm
+    reportf("Elapsed time for file splitting: %.2f seconds.", elapsed[1])
+    
+    if (dump_fails)
+      reportf("Demultiplexing failures written to file %s.", failfile)
+    
+    report("Distribution of valid reads:")
+    report("    Reads  %Reads        Name   Barcode   Tn-match   Quality      Final  %Final")
+    for (i in seq_along(barcodes)) {
+      reportf("%9i  %5.2f%%  %10s  [%s]    %6.2f%%   %6.2f%%  %9i  %5.2f%%", 
+              stats[i,"reads"], 
+              stats[i,"reads"]/sum(stats$reads)*100, 
+              names(barcodes)[i], barcodes[i],
+              stats[i,"matched_tn"]/stats[i,"reads"]*100,
+              stats[i,"quality"]/stats[i,"matched_tn"]*100,
+              stats[i,"quality"],
+              stats[i,"quality"]/sum(stats$quality)*100)
+    }
+    report("")
     
     set_log_file(NULL)
     
     erase_hashes(barcodes)
     if (dump_fails) erase_hashes("FAILS")
     
+    rownames(stats) <- NULL
     df <- data.frame(lane=lane, barcode=names(barcodes), 
-                     file=files, reads=reads)
+                     file=files)
     rownames(df) <- NULL
-    return(df)
+    return(cbind(df, stats))
   }
   
   dfs <- parallel::mclapply(seq_along(tnseq$filelog$input$file), 
                 function(i) split_fastq_file(tnseq$filelog$input$lane[i],
                                              tnseq$filelog$input$file[i]))
   tnseq$filelog$split <- do.call(rbind, dfs)
+  
   return(tnseq)
 }
 

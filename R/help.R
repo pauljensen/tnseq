@@ -1,3 +1,3 @@
 #' @importFrom Rcpp evalCpp
-#' @useDynLib tnseqr
+#' @useDynLib tnseq
 NULL

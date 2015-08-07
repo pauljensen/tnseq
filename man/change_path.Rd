@@ -4,7 +4,7 @@
 \alias{change_path}
 \title{Change the path for a \code{tnseq} directory.}
 \usage{
-change_path(tnseq)
+change_path(tnseq, ...)
 }
 \arguments{
 \item{tnseq}{A \code{tnseq} object.}
@@ -23,6 +23,6 @@ object.
 Change the path for a \code{tnseq} directory.
 }
 \seealso{
-\code{\link{create_tnseq_experiment}}
+\code{\link{get_path}}
 }
 
