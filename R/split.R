@@ -42,9 +42,9 @@ split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE,
                          match_transposon_sequence=FALSE, quality=NA) {
   barcodes <- tnseq$barcodes
   
-  split_fastq_file <- function(lane, fastq) {
+  split_fastq_file <- function(input, fastq) {
     start_log_file(get_path(tnseq, dir="log", 
-                            file=paste0("split_", lane, ".log")))
+                            file=paste0("split_", input, ".log")))
     ptm <- proc.time()  # start timing
     
     if (dump_fails) {
@@ -107,30 +107,28 @@ split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE,
         keys <- reads %>% ShortRead::sread() %>% as.character()
         add_keys(code, keys)
       }
-      close(streamer)
 
       if (dump_fails) {
         fails <- colSums(assignments) == 0
         add_keys("FAILS", fq %>% ShortRead::sread() %>% as.character())
-      }
-      
-      tnseq$reads <<- reads
+      }      
     }
+    close(streamer)
     
-    fileends <- paste0(lane, "_", names(barcodes), ".fasta")
+    fileends <- paste0(input, "_", names(barcodes), ".fasta")
     files <- get_path(tnseq, dir="split", file=fileends)
     for (i in seq_along(barcodes)) {
       write_hash_to_file(barcodes[i], path.expand(files[i]))
     }
     if (dump_fails) {
       failfile <- get_path(tnseq, dir="split", 
-                           file=paste0(lane, "_", "FAILS.fasta"))
+                           file=paste0(input, "_", "FAILS.fasta"))
       write_hash_to_file("FAILS", path.expand(failfile))
     }
     
     # ==================== reporting ============================
     
-    reportf("Processing lane %s (%s).", lane, fastq)
+    reportf("Processing file %s (%s).", input, fastq)
     indent_report()
     reportf("%i total reads.", total_reads)
     if (!is.na(max_cycles))
@@ -164,20 +162,19 @@ split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE,
     }
     report("")
     
+    unindent_report()
     set_log_file(NULL)
     
     erase_hashes(barcodes)
     if (dump_fails) erase_hashes("FAILS")
     
     rownames(stats) <- NULL
-    df <- data.frame(lane=lane, barcode=names(barcodes), 
-                     file=files)
-    rownames(df) <- NULL
+    df <- dplyr::data_frame(input=input, barcode=names(barcodes), file=files)
     return(cbind(df, stats))
   }
   
   dfs <- parallel::mclapply(seq_along(tnseq$filelog$input$file), 
-                function(i) split_fastq_file(tnseq$filelog$input$lane[i],
+                function(i) split_fastq_file(tnseq$filelog$input$input[i],
                                              tnseq$filelog$input$file[i]))
   tnseq$filelog$split <- do.call(rbind, dfs)
   

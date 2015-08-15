@@ -107,20 +107,20 @@ create_tnseq_directory <- function(path) {
   # add sample samples file
 }
 
-#' Create a \code{tnseq} object from existing directory.
+#' Load a \code{tnseq} object from existing directory.
 #' 
 #' @param path Experimental directory to load.
 #' @return A \code{tnseq} object.
 #' @seealso \code{\link{create_tnseq_directory}}
 #' 
 #' @export
-create_tnseq_experiment <- function(path) {
+load_tnseq_experiment <- function(path) {
   path <- check_path_ending(path)
   if (!file.exists(path)) {
     stop(paste0("Directory does not exist.  Use `create_tnseq_directory` ",
                 "to create a sample directory."))
   } else {
-    report0("Creating tnseq experiment at ", path, ".")
+    report0("Creating tnseq experiment from ", path, ".")
   }
   
   indent_report()
@@ -130,7 +130,8 @@ create_tnseq_experiment <- function(path) {
       input = create_dir("input", path),
       split = create_dir("split", path),
       map = create_dir("map", path),
-      log = create_dir("log", path)
+      log = create_dir("log", path),
+      genomes = create_dir("genomes", path)
     )
   )
   unindent_report()
@@ -166,12 +167,13 @@ create_tnseq_experiment <- function(path) {
   reportf("   Loaded %i samples.", nrow(tnseq$samples))
   
   # read all input files and create default filelog
-  lane_files <- system(paste("ls -1", get_path(tnseq, dir="input")), intern=T)
-  filelog <- data.frame(lane=lane_files, 
-                        file=get_path(tnseq, dir="input", file=lane_files),
+  # TODO: remove dependence on ls system call
+  input_files <- system(paste("ls -1", get_path(tnseq, dir="input")), intern=T)
+  filelog <- data.frame(input=input_files, 
+                        file=get_path(tnseq, dir="input", file=input_files),
                         stringsAsFactors=F)
   tnseq$filelog <- list(input=filelog)
-  reportf("Found %i lanes of input data:", nrow(tnseq$filelog$input))
+  reportf("Found %i files of input data:", nrow(tnseq$filelog$input))
   indent_report()
   lapply(tnseq$filelog$input$file, report)
   unindent_report()

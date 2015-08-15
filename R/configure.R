@@ -30,3 +30,18 @@ get_cores <- function() {
   getOption("mc.cores")
 }
 
+configuration_defaults <- list(
+  QUALITY_CUTOFF = NA,
+  MATCH_TN_SEQUENCE = FALSE,
+  MAX_CYCLES = NA,
+  DUMP_MATCH_FAILS = FALSE
+)
+
+configure <- function(...) {
+  opts <- list(...)
+  
+}
+
+cfg <- function(opt) {
+  getOption(deparse(substitute(opt)))
+}

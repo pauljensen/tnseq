@@ -12,15 +12,17 @@ Description: A complete pipeline for processing and analyzing Tn-seq experiments
 License: GPL (>= 2)
 Imports: 
   dplyr,
+  genbank,
   GenomicRanges,
   ggplot2,
+  magrittr,
   parallel,
+  pryr,
   Rcpp (>= 0.11.5),
+  readr,
   stringr,
   tidyr,
   ShortRead
-Depends:
-  magrittr
 Suggests:
   GENE.E
 LinkingTo: Rcpp
