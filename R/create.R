@@ -178,5 +178,9 @@ load_tnseq_experiment <- function(path) {
   lapply(tnseq$filelog$input$file, report)
   unindent_report()
   
+  # genome loading and processing
+  tnseq$genomes <- unique(tnseq$samples$genome)
+  reportf("Sample sheet references %i genome(s).", length(tnseq$genomes))
+  
   return(tnseq)
 }
