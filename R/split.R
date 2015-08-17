@@ -93,7 +93,7 @@ split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE,
                                                max.Rmismatch=c(-1,-1,1,1,1,1))
           reads <- reads[ShortRead::width(reads) < 19]
         } else {
-          reads %<>% ShortRead::narrow(start=1, end=12)
+          reads %<>% ShortRead::narrow(start=1, end=16)
         }
         stats[code,"matched_tn"] <- stats[code,"matched_tn"] + length(reads)
         
