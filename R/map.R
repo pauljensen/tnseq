@@ -84,6 +84,8 @@ map_reads <- function(tnseq, show_bowtie_cmd=F) {
                          tnseq$filelog$split$barcode == code)
     if (length(split_idx) > 1) {
       stop("Multiple samples for file ", input, " barcode ", code)
+    } else if (length(split_idx) == 0) {
+      stop("No samples for file ", input, " barcode ", code)
     }
     args$splitfile[i] <- tnseq$filelog$split$file[split_idx]
     input <- tnseq$filelog$split$input[split_idx]
