@@ -47,6 +47,7 @@ create_features_table <- function(gbk, feature="gene", name_key="locus_tag",
   return(gr)
 }
 
+#' @export
 load_genomes <- function(tnseq, cached=T) {
   tnseq$genome_sequences <- list()
   tnseq$features <- list()
@@ -114,6 +115,7 @@ load_genomes <- function(tnseq, cached=T) {
   return(tnseq)
 }
 
+#' @export
 create_bowtie_indexes <- function(tnseq) {
   reportf("Creating Bowtie index files.")
   indent_report()

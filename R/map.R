@@ -58,6 +58,7 @@ parse_bowtie_log <- function(logfile) {
 }
 
 # TODO: make parallel
+#' @export
 map_reads <- function(tnseq, show_bowtie_cmd=F) {
   # match samples to split files
   n_samples <- nrow(tnseq$samples)
@@ -128,6 +129,7 @@ map_reads <- function(tnseq, show_bowtie_cmd=F) {
 
 # ================ compiling mapped reads ================
 
+#' @export
 pair_samples <- function(tnseq) {
   t1 <- tnseq$samples[tnseq$samples$time == 1,]
   t2 <- tnseq$samples[tnseq$samples$time == 2,]
@@ -188,6 +190,7 @@ get_read_pairs <- function(mapfile1, mapfile2) {
   return(both)
 }
 
+#' @export
 load_insertions <- function(tnseq) {
   n_paired <- nrow(tnseq$paired_samples)
   cols_to_keep <- c("strain", "library", "condition", "genome", "expansion")
@@ -203,6 +206,7 @@ load_insertions <- function(tnseq) {
   return(tnseq)
 }
 
+#' @export
 map_insertions_to_genes <- function(tnseq) {
   aux_map <- function(df) {
     genome <- df$genome[1]
