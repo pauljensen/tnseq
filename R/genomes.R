@@ -43,7 +43,7 @@ create_features_table <- function(gbk, feature="gene", name_key="locus_tag",
                                sites=sapply(locs, f(x, x$tn_count)),
                                seqnames="chr1")
   names(gr) <- sapply(locs, f(x, x$name))
-  seqlengths(gr) <- length(gbk$sequence)
+  #GenomicRanges::seqlengths(gr) <- length(gbk$sequence)
   return(gr)
 }
 
@@ -71,17 +71,18 @@ load_genomes <- function(tnseq, cached=T) {
       tnseq$features[[genome]] <- create_features_table(gbk)
       tnseq$genome_sequences[[genome]] <- gbk$sequence
       reportf("Found %i bases, %i genes, %i transposon sites",
-              seqlengths(tnseq$features[[genome]])[1],
+              #GenomicRanges::seqlengths(tnseq$features[[genome]])[1],
+              length(tnseq$genomic_sequences[[genome]]),
               length(tnseq$features[[genome]]),
               sum(tnseq$features[[genome]]$sites))
       
       reportf("Writing features table to %s.", features_path)
       features <- tnseq$features[[genome]]
       readr::write_csv(data.frame(names=names(features),
-                                  seqnames=seqnames(features),
-                                  start=start(features),
-                                  end=end(features),
-                                  strand=strand(features),
+                                  seqnames=GenomicRanges::seqnames(features),
+                                  start=GenomicRanges::start(features),
+                                  end=GenomicRanges::end(features),
+                                  strand=GenomicRanges::strand(features),
                                   sites=features$sites,
                                   stringsAsFactors=F),
                        path=features_path)
@@ -106,7 +107,7 @@ load_genomes <- function(tnseq, cached=T) {
                                    sites=feats$sites,
                                    seqnames=feats$seqnames)
       names(gr) <- feats$names
-      seqlengths(gr) <- length(tnseq$genome_sequences[[genome]])
+      #GenomicRanges::seqlengths(gr) <- length(tnseq$genome_sequences[[genome]])
       tnseq$features[[genome]] <- gr
     }
     unindent_report()

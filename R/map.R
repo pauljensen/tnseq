@@ -201,8 +201,9 @@ load_insertions <- function(tnseq) {
     df <- do.call(data.frame, tnseq$paired_samples[i,cols_to_keep])
     cbind(df, inserts)
   }
-  tnseq$insertions <- do.call(rbind, mclapply(1:nrow(tnseq$paired_samples), 
-                                              load_aux))
+  tnseq$insertions <- do.call(rbind, 
+                              parallel::mclapply(1:nrow(tnseq$paired_samples), 
+                                                 load_aux))
   return(tnseq)
 }
 
@@ -210,8 +211,8 @@ load_insertions <- function(tnseq) {
 map_insertions_to_genes <- function(tnseq) {
   aux_map <- function(df) {
     genome <- df$genome[1]
-    hits <- findOverlaps(IRanges(start=df$pos, width=1),
-                         ranges(tnseq$features[[genome]]))
+    hits <- IRanges::findOverlaps(IRanges::IRanges(start=df$pos, width=1),
+                                  GenomicRanges::ranges(tnseq$features[[genome]]))
     df$gene <- character(nrow(df))
     queries <- IRanges::queryHits(hits)
     subjects <- IRanges::subjectHits(hits)
@@ -228,9 +229,9 @@ map_insertions_to_genes <- function(tnseq) {
     has_gene <- !is.na(df$gene)
     relpos <- numeric(nrow(df))
     gr <- tnseq$features[[genome]][df$gene[has_gene]]
-    relpos[has_gene] <- ifelse(as.character(strand(gr)) == "+",
-                               (df$pos[has_gene] - start(gr)) / width(gr),
-                               (end(gr) - df$pos[has_gene]) / width(gr))
+    relpos[has_gene] <- ifelse(as.character(GenomicRanges::strand(gr)) == "+",
+                               (df$pos[has_gene] - GenomicRanges::start(gr)) / GenomicRanges::width(gr),
+                               (GenomicRanges::end(gr) - df$pos[has_gene]) / GenomicRanges::width(gr))
     relpos[!has_gene] <- NA
     df$relpos <- relpos
     return(df)
