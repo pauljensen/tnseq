@@ -245,25 +245,4 @@ map_insertions_to_genes <- function(tnseq) {
   return(tnseq)
 }
 
-filter_insertions <- function(tnseq, drop_t1_zeros=T, drop_t2_zeros=F, 
-                              min_total_reads=15,
-                              trim_head_frac=0.0, trim_tail_frac=0.1) {
-  to_drop <- !logical(nrow(tnseq$insertions))
-  if (drop_t1_zeros) {
-    to_drop <- to_drop & (tnseq$insertions$reads1 == 0)
-  }
-  if (drop_t2_zeros) {
-    to_drop <- to_drop & (tnseq$insertions$read2 == 0)
-  }
-  if (min_total_reads > 0) {
-    to_drop <- to_drop & (tnseq$insertions$reads1 + tnseq$insertions$reads2 < 
-                            min_total_reads)
-  }
-#   to_drop <- to_drop & ifelse(is.na(tnseq$insertions$relpos),
-#                               FALSEtnseq$insertions$relpos > trim_head_frac
-#   to_drop <- to_drop & (tnseq$insertions$relpos < 1 - trim_tail_frac)
-  
-  tnseq$insertions <- tnseq$insertions[!to_drop,]
-  return(tnseq)
-}
 
