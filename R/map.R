@@ -50,6 +50,7 @@ load_compressed_mapfile <- function(filename) {
   }
 }
 
+#' @export
 parse_bowtie_log <- function(logfile) {
   text <- paste(readLines(logfile), collapse="")
   reads <- as.integer(stringr::str_match(text, "reads processed: (\\d+)")[1,2])

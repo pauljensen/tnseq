@@ -23,6 +23,8 @@ Imports:
   stringr,
   tidyr,
   ShortRead
+Depends:
+  magrittr
 Suggests:
   GENE.E
 LinkingTo: Rcpp
