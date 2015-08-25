@@ -75,25 +75,32 @@ split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE,
       }
       total_reads <- total_reads + length(fq)
       
-      trimmed <- fq %>% ShortRead::narrow(start=10, end=34)
-      barcode_strings <- trimmed %>%
-        ShortRead::narrow(start=1, end=6) %>%
+      barcode_strings <- fq %>%
+        ShortRead::narrow(start=10, end=15) %>%
         ShortRead::sread()
       assignments <- match_barcodes(barcode_strings, barcodes)
       for (code in barcodes) {
-        reads <- trimmed[assignments[ ,code]] %>%
-          ShortRead::narrow(start=7, end=25)  # remove barcode
+        reads <- fq[assignments[ ,code]]
         stats[code,"reads"] <- stats[code,"reads"] + length(reads)
         
         if (match_transposon_sequence) {
           # matching here
-          tn_sequence <- Biostrings::DNAString("TAACAG")
-          reads %<>% ShortRead::trimLRPatterns(Rpattern=tn_sequence, 
-                                               subject=., 
-                                               max.Rmismatch=c(-1,-1,1,1,1,1))
-          reads <- reads[ShortRead::width(reads) < 19]
+          pattern <- Biostrings::DNAString("TAACAGGTTGGCTGATAAGT")
+          read_length <- 51
+          start_pos <- 1
+          n_sites <- read_length - start_pos - length(pattern) + 2
+          site_counts <- integer(n_sites)
+          avg_dists <- numeric(n_sites)
+          starting.at <- start_pos:(read_length-length(pattern)+1)
+          edits <- Biostrings::neditStartingAt(pattern,
+                                               ShortRead::sread(reads),
+                                               starting.at=starting.at)
+          argmins <- apply(edits, 2, which.min)
+          cutat <- ifelse(argmins < 29, 17, argmins-1)
+          reads %<>% ShortRead::narrow(start=16, end=cutat)
+          reads <- reads[argmins >= 29 & argmins <= 32]
         } else {
-          reads %<>% ShortRead::narrow(start=1, end=16)
+          reads %<>% ShortRead::narrow(start=16, end=28)
         }
         stats[code,"matched_tn"] <- stats[code,"matched_tn"] + length(reads)
         
@@ -104,7 +111,7 @@ split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE,
         }
         stats[code,"quality"] <- stats[code,"quality"] + length(reads)
         
-        keys <- reads %>% ShortRead::sread() %>% as.character()
+        keys <- reads %>% ShortRead::sread() %>% as.character() %>% paste0("TA")
         add_keys(code, keys)
       }
 
