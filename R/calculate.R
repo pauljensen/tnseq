@@ -9,9 +9,13 @@ filter_insertions <- function(tnseq, drop_t1_zeros=T, drop_t2_zeros=F,
   if (!is.na(min_total_reads))
     passing <- passing & with(tnseq$insertions, reads1 + reads2 >= min_total_reads)
   if (!is.na(trim_head_frac))
-    passing <- passing & tnseq$insertions$relpos > trim_head_frac
+    passing <- passing & ifelse(is.na(tnseq$insertions$relpos),
+                                TRUE,
+                                tnseq$insertions$relpos > trim_head_frac)
   if (!is.na(trim_tail_frac))
-    passing <- passing & tnseq$insertions$relpos < (1 - trim_tail_frac)
+    passing <- passing & ifelse(is.na(tnseq$insertions$relpos),
+                                TRUE,
+                                tnseq$insertions$relpos < (1 - trim_tail_frac))
   
   tnseq$insertions <- tnseq$insertions[passing, ]
   return(tnseq)
