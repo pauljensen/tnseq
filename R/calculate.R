@@ -28,3 +28,70 @@ calculate_fitness <- function(tnseq) {
                            log(expansion*f2/f1) / log(expansion*(1-f2)/(1-f1))))
   return(tnseq)
 }
+
+weighted_sd <- function(x, w) {
+  sqrt(weighted.mean((x - mean(x))^2, w))
+}
+
+#' @export
+aggregate <- function(tnseq, grouping=c("strain", "library", "condition", "gene"),
+                      add_missing_genes=T,
+                      max_weight=50) {
+  
+  add_miss <- function(df) {
+    all_genes <- names(tnseq$features[[unique(df$genome)]])
+    missing <- setdiff(all_genes, df$gene)
+    n <- length(missing)
+    newdf <- df[rep(1, n), ]
+    newdf$pos <- NA
+    newdf$strand <- NA
+    newdf$reads1 <- NA
+    newdf$reads2 <- NA
+    newdf$relpos <- NA
+    newdf$f1 <- NA
+    newdf$f2 <- NA
+    newdf$W <- 0
+    newdf$gene <- missing
+    newdf$method <- "MISSING"
+        
+    rbind(df, newdf)
+  }
+  
+  if (add_missing_genes) {
+    insertions <- tnseq$insertions %>% 
+      dplyr::group_by_(.dots=setdiff(grouping, "gene")) %>%
+      dplyr::do(add_miss(.)) %>%
+      dplyr::ungroup()
+  } else {
+    insertions <- tnseq$insertions
+  }
+  
+  weight <- function(reads1, reads2) ifelse(reads1 + reads2 > max_weight,
+                                            max_weight,
+                                            reads1 + reads2)
+  
+  tnseq$aggregate <- insertions %>%
+    dplyr::group_by_(.dots=grouping) %>%
+    dplyr::summarize(
+      insertions=n(),
+      zero_t2=sum(reads2 == 0),
+      reads_t1=sum(reads1),
+      reads_t2=sum(reads2),
+      
+      fitness=mean(W),
+      stdev=sd(W),
+      stderr=sd(W)/sqrt(n()),
+      
+      weighted_fitness=weighted.mean(W, weight(reads1, reads2)),
+      weighted_stdev=weighted_sd(W, weight(reads1, reads2)),
+      weighted_stderr=weighted_stdev/sqrt(n()),
+      
+      genome=paste(unique(genome), collapse=", "),
+      method=unique(method)
+    ) 
+  
+  tnseq$aggregate$insertions[tnseq$aggregate$method == "MISSING"] <- 0
+  
+  return(tnseq)
+}
+

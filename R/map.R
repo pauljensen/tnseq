@@ -1,6 +1,6 @@
 
 BOWTIE_CMD <- "~/bowtie/bowtie"
-BOWTIE_OPTS <- "-f -m 1 -n 1 --best -y -p 2"
+BOWTIE_OPTS <- "-f -n 1 --all -y -p 2"
 INDEX_PATH <- "~/seqdata/index/"
 BOWTIE_BUILD_CMD <- "~/bowtie/bowtie-build"
 
@@ -14,24 +14,57 @@ load_mapfile <- function(filename) {
                            col_names=c("read_name", "strand", "ref_name", 
                                        "pos", "sequence", "quality", 
                                        "duplicity", "mismatch"),
-                           col_types="cc_i____")
-  reads$reads <- stringr::str_match(reads$read_name, "\\d+-(\\d+)")[,2] %>%
+                           col_types="cc_ic_ic")
+  reads$reads <- stringr::str_match(reads$read_name, "\\d+-(\\d+)")[ ,2] %>%
                     as.integer()
+  
+  reads$length <- nchar(reads$sequence)
   reads$pos <- as.integer(reads$pos + 1)   # bowtie positions are zero-indexed
-  return(reads)
+  pos_strand <- reads$strand == "+"
+  reads$pos[pos_strand] <- reads$pos[pos_strand] + reads$length[pos_strand] - 2
+  
+  reads$has_mismatch <- nchar(reads$mismatch) > 0
+  reads$mismatch_pos <- as.integer(NA)
+  has_mismatch <- reads$has_mismatch
+  reads$mismatch_pos[has_mismatch] <- (reads$mismatch[has_mismatch] %>%
+        stringr::str_match("(\\d+):"))[ ,2] %>%
+        as.integer() + 1  # bowtie positions are zero-indexed
+  
+  reads$mismatch_in_TA <- with(reads, ifelse(has_mismatch,
+                                             length - mismatch_pos < 2,
+                                             FALSE))
+  
+  reads %<>%
+    dplyr::group_by(read_name) %>%
+    dplyr::mutate(duplicated=n() > 1)
+  n_dup_orig <- nrow(reads[!reads$duplicated, ])
+  
+  reads <- reads[!reads$mismatch_in_TA, ]
+  reads %<>% 
+    dplyr::group_by(read_name) %>%
+    dplyr::mutate(duplicated=n() > 1)
+  n_dup <- nrow(reads[!reads$duplicated, ])
+  
+  print((n_dup_orig - n_dup) / n_dup_orig * 100)
+  
+  return(reads[!reads$duplicated, ])
 }
 
 compress_reads <- function(reads) {
-  reads %>% 
+  reads %<>% 
     dplyr::select(pos, reads, strand) %>% 
-    dplyr::group_by(pos, strand) %>% 
-    dplyr::summarize(reads=sum(reads))
+    dplyr::group_by(pos) %>% 
+    dplyr::summarize(reads=sum(reads),
+                     strand=paste(sort(unique(strand), decreasing=T), 
+                                  collapse="/"))
+  reads$pos %<>% as.integer()
+  return(reads)
 }
 
 compress_mapfile <- function(infile, outfile) {
   if (file.info(infile)$size == 0) {
     # empty file; create empty compressed file
-    writeLines('"pos","strand","reads"\n', outfile)
+    writeLines('"pos","reads","strand"\n', outfile)
   } else {
     infile %>%
       load_mapfile() %>%
@@ -41,7 +74,7 @@ compress_mapfile <- function(infile, outfile) {
 }
 
 load_compressed_mapfile <- function(filename) {
-  reads <- readr::read_csv(filename, col_names=T, col_types="ici")
+  reads <- readr::read_csv(filename, col_names=T, col_types="iic")
   if (nrow(reads) == 1 && is.na(reads[1,"pos"])) {
     # this was an empty file; return and empty data frame
     return(reads[-1, ])

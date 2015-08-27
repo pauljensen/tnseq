@@ -101,6 +101,8 @@ create_tnseq_directory <- function(path) {
   create_dir("split", path)
   create_dir("map", path)
   create_dir("log", path)
+  create_dir("genomes", path)
+  create_dir("reports", path)
   
   # add sample barcode file
   
@@ -131,7 +133,8 @@ load_tnseq_experiment <- function(path) {
       split = create_dir("split", path),
       map = create_dir("map", path),
       log = create_dir("log", path),
-      genomes = create_dir("genomes", path)
+      genomes = create_dir("genomes", path),
+      reports = create_dir("reports", path)
     )
   )
   unindent_report()
