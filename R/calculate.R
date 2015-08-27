@@ -25,7 +25,8 @@ calculate_fitness <- function(tnseq) {
                   f2=reads2/sum(reads2),
                   W=ifelse(reads2 == 0,
                            0,
-                           log(expansion*f2/f1) / log(expansion*(1-f2)/(1-f1))))
+                           log(expansion*f2/f1) / log(expansion*(1-f2)/(1-f1))),
+                  method="CALCULATED")
   return(tnseq)
 }
 
