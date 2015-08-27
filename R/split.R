@@ -39,7 +39,7 @@ match_barcodes <- function(dnas, barcodes, mismatches=0) {
 #' @return A tnseq object with updated filelog.
 #' @export
 split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE,
-                         match_transposon_sequence=FALSE, quality=NA) {
+                         match_transposon_sequence=TRUE, quality=NA) {
   barcodes <- tnseq$barcodes
   
   split_fastq_file <- function(input, fastq) {
