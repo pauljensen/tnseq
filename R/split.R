@@ -85,7 +85,7 @@ split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE,
         
         if (match_transposon_sequence) {
           # matching here
-          pattern <- Biostrings::DNAString("TAACAGGTTGGCTGATAAGT")
+          pattern <- Biostrings::DNAString("TAACAGGTTGGATGATAAGT")
           read_length <- 51
           start_pos <- 1
           n_sites <- read_length - start_pos - length(pattern) + 2

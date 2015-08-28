@@ -5,7 +5,7 @@
 \title{Trim raw reads and split by DNA barcodes.}
 \usage{
 split_inputs(tnseq, max_cycles = NA, dump_fails = FALSE,
-  match_transposon_sequence = FALSE, quality = NA)
+  match_transposon_sequence = TRUE, quality = NA)
 }
 \arguments{
 \item{tnseq}{A tnseq object.}
