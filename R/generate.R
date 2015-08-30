@@ -12,16 +12,29 @@ generate_reports <- function(tnseq) {
   }
   
   grouping <- c("strain", "library", "condition", "gene")
-  tnseq %<>% aggregate(grouping=grouping)
+  tnseq %<>% aggregate(grouping=grouping) %>% add_missing_genes()
   tnseq$aggregate %>%
     dplyr::group_by_(.dots=setdiff(grouping, "gene")) %>%
     dplyr::do(writer(.)) %>%
     dplyr::ungroup()
   
   grouping <- c("strain", "condition", "gene")
-  tnseq %<>% aggregate(grouping=grouping)
+  tnseq %<>% aggregate(grouping=grouping) %>% add_missing_genes()
   tnseq$aggregate %>%
     dplyr::group_by_(.dots=setdiff(grouping, "gene")) %>%
     dplyr::do(writer(.)) %>%
     dplyr::ungroup()
+  
+  return(NULL)
+}
+
+#' @export
+quick_summary <- function(tnseq) {
+  tnseq$aggregate %>%
+    dplyr::group_by(strain, condition) %>%
+    dplyr::summarize(insertions=sum(insertions),
+                     mean_stdev=mean(stdev, na.rm=T),
+                     mean_stderr=mean(stderr, na.rm=T),
+                     total_genes=sum(!is.na(gene)),
+                     missing_genes=sum(method=="MISSING"))
 }

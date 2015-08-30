@@ -30,6 +30,172 @@ match_barcodes <- function(dnas, barcodes, mismatches=0) {
   return(hits)
 }
 
+transposons <- list(
+  magellan=list(
+    seq=Biostrings::DNAString("TAACAGGTTGGATGATAAGT"),
+    append_seq="TA",
+    min_pos=29,
+    max_pos=32
+  )  
+)
+
+
+split_inputs_ <- function(input_file,
+                          barcodes,
+                          barcode_start=10,
+                          barcode_end=15,
+                          output_files,
+                          max_reads=Inf,
+                          fail_file=NA,
+                          output_tnq_fails=FALSE,
+                          
+                          match_transposon=TRUE,
+                          transposon="magellan",
+                          tn_params=NA,
+                          default_cut=NA,
+                          
+                          output_format="fasta",
+                          output_untrimmed=FALSE,
+                          collapse=T,
+                          min_quality=NA) {
+  
+  # ============= transposon matching =============
+  if (match_transposon) {
+    if (is.na(transposon) && is.na(tn_params))
+      stop("Either a transposon name or transposon_params must be given.")
+    if (is.character(transposon) && !(transposon %in% names(transposons)))
+      stop("Unknown transposon ", transposon)
+  }
+  if (!is.na(transposon)) {
+    tn_params <- transposons[[transposon]]
+  }
+  if (!match_transposon && is.na(default_cut) && !output_untrimmed)
+    stop("default_cut must be specified if transposon matching is off.")
+  
+  # ============= output file formats =============
+  valid_formats <- c(fastq="fastq", fq="fastq", fasta="fasta", fa="fa")
+  if (!(output_format %in% names(valid_formats)))
+    stop("Unsupported output format ", output_format)
+  output_format <- valid_formats[output_format]  # choose 'fastq' or 'fasta'
+  if (collapse && output_format == "fastq")
+    stop("FASTQ files cannot be collapsed.  Please output FASTA files.")
+  
+  # ============= output file names =============
+  if (length(output_files) == 1 && is.null(names(output_files))) {
+    # path prefix given; create names
+    output_files <- paste0(check_path_ending(output_files),
+                           input_file, "_",
+                           names(barcodes),
+                           ".", output_format)
+    names(output_files) <- names(barcodes)
+  } else {
+    # check that all barcodes are represented
+    if (!all(names(barcodes) %in% names(output_files)))
+      stop("All barcodes must have an output file.")
+  }
+  if (output_tnq_fails) {
+    fail_files <- paste0(output_files, "_", "FAILS", output_format)
+    names(fail_files) <- names(barcodes)
+  }
+  
+  # ============= output function =============
+  # touch all files first
+  outputf <- function(reads, filename) {
+    if (collapse) {
+      # add to hashes
+    } else if (output_format == "fasta") {
+      ShortRead::writeFasta(reads, filename, mode="a")
+    } else {
+      ShortRead::writeFastq(reads, filename, mode="a")
+    }
+  }
+  
+  # ============= hashtables for collapsing reads =============
+  if (collapse) {
+    hashes <- output_files
+    if (output_fails) {
+      hashes <- c(output_files, fail_files, fail_file)
+    }
+    build_hashes(hashes)
+  }
+  
+  # ============= collect stats about splitting =============
+  n_barcodes <- length(barcodes)
+  stats <- data.frame(reads=integer(n_barcodes),
+                      matched_tn=integer(n_barcodes),
+                      quality=integer(n_barcodes))
+  rownames(stats) <- names(barcodes)
+  total_reads <- 0
+  break_at_end <- FALSE
+  
+  streamer <- ShortRead::FastqStreamer(fastq)
+  repeat {
+    fq <- ShortRead::yield(streamer)
+    
+    # see if this yield contains enough reads to stop
+    if (total_reads + length(fq) >= max_reads) {
+      fq <- fq[1:(max_reads - total_reads)]
+      break_at_end <- TRUE  # stop after this iteration
+    }
+    total_reads <- total_reads + length(fq)
+    
+    barcode_strings <- fq %>%
+      ShortRead::narrow(start=barcode_start, end=barcode_end) %>%
+      ShortRead::sread()
+    assignments <- match_barcodes(barcode_strings, barcodes)
+    for (code in names(barcodes)) {
+      reads <- fq[assignments[ ,barcodes(code)]]
+      stats[code,"reads"] <- stats[code,"reads"] + length(reads)
+      
+      if (match_transposon) {
+        read_length <- width(reads[1])
+        start_pos <- 1  # match across entire read
+        n_sites <- read_length - start_pos - length(tn_params$seq) + 2
+        site_counts <- integer(n_sites)
+        starting.at <- start_pos:(read_length-length(tn_params$seq)+1)
+        edits <- Biostrings::neditStartingAt(tn_params$seq,
+                                             ShortRead::sread(reads),
+                                             starting.at=starting.at)
+        argmins <- apply(edits, 2, which.min)
+        if (!output_trimmed) {
+          cutat <- ifelse(argmins < barcode_end+2, barcode_end+1, argmins-1)
+          reads %<>% ShortRead::narrow(start=barcode_end+1, end=cutat)
+        }
+        passing <- argmins >= tn_params$min_pos && argmins <= tn_params$max_pos
+        if (output_tnq_fails) {
+          outputf(reads[!passing], fail_files[code])
+        }
+        outputf(reads[passing], output_files[code])
+        
+      } else {
+        reads %<>% ShortRead::narrow(start=16, end=28)
+      }
+      stats[code,"matched_tn"] <- stats[code,"matched_tn"] + length(reads)
+      
+      if (!is.na(quality)) {
+        # filter reads for quality
+        mean_quality <- rowMeans(as(quality(reads), "matrix"), na.rm=T)
+        reads <- reads[mean_quality > quality]
+      }
+      stats[code,"quality"] <- stats[code,"quality"] + length(reads)
+      
+      keys <- reads %>% ShortRead::sread() %>% as.character() %>% paste0("TA")
+      add_keys(code, keys)
+    }
+    
+    if (dump_fails) {
+      fails <- colSums(assignments) == 0
+      add_keys("FAILS", fq %>% ShortRead::sread() %>% as.character())
+    }
+    
+    # exit if we've read enough reads
+    if (break_at_end) break
+  }
+  close(streamer)
+}
+    
+    
+
 #' Trim raw reads and split by DNA barcodes.
 #' 
 #' Adapters are trimmed, and barcodes are used to split input FASTQ files into
