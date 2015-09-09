@@ -1,4 +1,5 @@
 
+#' @export
 get_genome_feature_table <- function(tnseq) {
   dfs <- lapply(tnseq$features, function(x) data.frame(gene=names(x),
                                                        name=x$name,
