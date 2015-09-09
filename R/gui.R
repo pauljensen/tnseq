@@ -22,8 +22,8 @@ create_shiny_app <- function(tnseq) {
     })
     
     output$geneSelect <- renderUI({
-      inserts <- tnseq$insertions %>% filter(strain==input$strain,
-                                             condition==input$condition)
+      inserts <- tnseq$insertions %>% dplyr::filter(strain==input$strain,
+                                                    condition==input$condition)
       genes <- na.omit(unique(inserts$gene))
       if (!is.null(input$gene) && input$gene %in% genes) {
         selected <- input$gene
