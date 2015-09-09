@@ -20,7 +20,7 @@ get_tn_count <- function(sequence, tn_site) {
   return(unname(freq[tn_site] + freq[rc_tn_site]))
 }
 
-create_features_table <- function(gbk, feature="gene", name_key="locus_tag", 
+create_features_table <- function(gbk, feature="CDS", name_key="locus_tag", 
                                   tn_site="TA") {
   features <- gbk$features[[feature]]
   n <- length(features)
@@ -33,6 +33,12 @@ create_features_table <- function(gbk, feature="gene", name_key="locus_tag",
     } else {
       locs[[i]]$name <- paste0(feature, "--", i)
     }
+    locs[[i]]$gene <- ifelse(is.null(features[[i]]$gene),
+                             "",
+                             features[[i]]$gene)
+    locs[[i]]$product <- ifelse(is.null(features[[i]]$product),
+                                "",
+                                features[[i]]$product)
   }
   
   locs <- Filter(f(l, !any(is.na(l))), locs)
@@ -41,6 +47,8 @@ create_features_table <- function(gbk, feature="gene", name_key="locus_tag",
   gr <- GenomicRanges::GRanges(ranges=iranges, 
                                strand=sapply(locs, f(x, x$strand)),
                                sites=sapply(locs, f(x, x$tn_count)),
+                               name=sapply(locs, f(x, x$gene)),
+                               product=sapply(locs, f(x, x$product)),
                                seqnames="chr1")
   names(gr) <- sapply(locs, f(x, x$name))
   #GenomicRanges::seqlengths(gr) <- length(gbk$sequence)

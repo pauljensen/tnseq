@@ -250,9 +250,13 @@ map_insertions_to_genes <- function(tnseq) {
     hits <- IRanges::findOverlaps(IRanges::IRanges(start=df$pos, width=1),
                                   GenomicRanges::ranges(tnseq$features[[genome]]))
     df$gene <- character(nrow(df))
+    df$name <- character(nrow(df))
+    df$product <- character(nrow(df))
     queries <- IRanges::queryHits(hits)
     subjects <- IRanges::subjectHits(hits)
     df$gene[queries] <- names(tnseq$features[[genome]])[subjects]
+    df$name[queries] <- tnseq$features[[genome]]$name[subjects]
+    df$product[queries] <- tnseq$features[[genome]]$product[subjects]
     return(df)
   }
   tnseq$insertions %<>%

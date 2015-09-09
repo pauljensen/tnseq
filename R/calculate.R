@@ -1,6 +1,6 @@
 
 #' @export
-filter_insertions <- function(tnseq, drop_t1_zeros=T, drop_t2_zeros=T, 
+filter_insertions <- function(tnseq, drop_t1_zeros=T, drop_t2_zeros=F, 
                               min_total_reads=15,
                               trim_head_frac=0.0, trim_tail_frac=0.1) {
   passing <- !logical(nrow(tnseq$insertions))

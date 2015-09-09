@@ -54,4 +54,4 @@ plot_fitness <- function(tnseq, strain, condition, gene,
   plot_fitness_aux(insertions, features, plot_start, plot_end)
 }
 
-plot_fitness(tnseq, "316", "SDMM", "SP_0771", margin=1000)
+#plot_fitness(tnseq, "316", "SDMM", "SP_0771", margin=1000)

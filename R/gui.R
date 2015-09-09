@@ -55,5 +55,5 @@ create_shiny_app <- function(tnseq) {
   shinyApp(ui=ui, server=server)
 }
 
-create_shiny_app(tnseq) %>% print()
+#create_shiny_app(tnseq) %>% print()
 
