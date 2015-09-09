@@ -57,3 +57,8 @@ create_shiny_app <- function(tnseq) {
 
 #create_shiny_app(tnseq) %>% print()
 
+show_gui <- function(file) {
+  load(file)
+  print(create_shiny_app(tnseq))
+}
+
