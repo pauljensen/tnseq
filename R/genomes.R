@@ -92,6 +92,8 @@ load_genomes <- function(tnseq, cached=T) {
                                   end=GenomicRanges::end(features),
                                   strand=GenomicRanges::strand(features),
                                   sites=features$sites,
+                                  name=features$name,
+                                  product=features$product,
                                   stringsAsFactors=F),
                        path=features_path)
       
@@ -107,12 +109,14 @@ load_genomes <- function(tnseq, cached=T) {
       
       # load features table
       reportf("Loading features table from %s.", features_path)
-      feats <- readr::read_csv(features_path, col_names=T, col_types="cciici")
+      feats <- readr::read_csv(features_path, col_names=T, col_types="cciicicc")
       iranges <- IRanges::IRanges(start=feats$start,
                                   end=feats$end)
       gr <- GenomicRanges::GRanges(ranges=iranges, 
                                    strand=feats$strand,
                                    sites=feats$sites,
+                                   name=feats$name,
+                                   product=feats$product,
                                    seqnames=feats$seqnames)
       names(gr) <- feats$names
       #GenomicRanges::seqlengths(gr) <- length(tnseq$genome_sequences[[genome]])
