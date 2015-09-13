@@ -20,38 +20,70 @@ get_tn_count <- function(sequence, tn_site) {
   return(unname(freq[tn_site] + freq[rc_tn_site]))
 }
 
-create_features_table <- function(gbk, feature="CDS", name_key="locus_tag", 
-                                  tn_site="TA") {
+mcols_defaults <- list(
+  name="gene", 
+  product="product", 
+  gene_length=f(x, length(x$sequence)),
+  tn_sites=f(x, get_tn_count(x$sequence, "TA"))
+)
+
+create_features_table <- function(gbk, feature="CDS", key="locus_tag",
+                                  mcols=mcols_defaults) {
   features <- gbk$features[[feature]]
   n <- length(features)
+  
   locs <- lapply(features, f(x, get_startend(x$location)))
+  genes <- character(n)
+  meta <- vector(mode="list", length=n)
   for (i in seq_along(features)) {
-    sequence <- genbank::extract_sequence(features[[i]]$location, gbk$sequence)
-    locs[[i]]$tn_count <- get_tn_count(sequence, tn_site)
-    if (name_key %in% names(features[[i]])) {
-      locs[[i]]$name <- features[[i]][[name_key]]
+    # add the DNA sequence to the feature in case any of the mcols function
+    # need it
+    features[[i]]$sequence <- genbank::extract_sequence(features[[i]]$location,
+                                                        gbk$sequence)
+    
+    # use key to find the gene name
+    if (key %in% names(features[[i]])) {
+      genes[i] <- features[[i]][[key]]
     } else {
-      locs[[i]]$name <- paste0(feature, "--", i)
+      # use generic number feature (e.g. "CDS--1")
+      genes[i] <- paste0(feature, "--", i)
     }
-    locs[[i]]$gene <- ifelse(is.null(features[[i]]$gene),
-                             "",
-                             features[[i]]$gene)
-    locs[[i]]$product <- ifelse(is.null(features[[i]]$product),
-                                "",
-                                features[[i]]$product)
+    
+    # extract the meta-column data
+    meta[[i]] <- list()
+    for (name in names(mcols)) {
+      if (is.character(mcols[[name]])) {
+        meta[[i]][[name]] <- ifelse(is.null(features[[i]][[mcols[[name]]]]),
+                                    NA,
+                                    features[[i]][[mcols[[name]]]])
+      } else {
+        # mcols[[name]] is a function that returns the meta-column
+        meta[[i]][[name]] <- mcols[[name]](features[[i]])
+      }
+    }
   }
   
-  locs <- Filter(f(l, !any(is.na(l))), locs)
+  # make sure we have complete location data for each gene
+  to_keep <- sapply(locs, f(x, !any(is.na(x))))
+  locs <- locs[to_keep]
+  genes <- genes[to_keep]
+  meta <- meta[to_keep]
+  
+  # build the final GenomicRanges structure
   iranges <- IRanges::IRanges(start=sapply(locs, f(x, x$start)),
                               end=sapply(locs, f(x, x$end)))
   gr <- GenomicRanges::GRanges(ranges=iranges, 
                                strand=sapply(locs, f(x, x$strand)),
-                               sites=sapply(locs, f(x, x$tn_count)),
-                               name=sapply(locs, f(x, x$gene)),
-                               product=sapply(locs, f(x, x$product)),
                                seqnames="chr1")
-  names(gr) <- sapply(locs, f(x, x$name))
-  #GenomicRanges::seqlengths(gr) <- length(gbk$sequence)
+  names(gr) <- genes
+  if (length(mcols) > 0) {
+    df <- list()
+    for (name in names(meta[[1]])) {
+      df[[name]] <- sapply(meta, f(x, x[[name]]))
+    }
+    GenomicRanges::mcols(gr) <- as.data.frame(df, stringsAsFactors=F)
+  }
+  
   return(gr)
 }
 
@@ -70,32 +102,23 @@ load_genomes <- function(tnseq, cached=T) {
     }
     
     fasta_path <- paste0(fullpath, ".fasta")
-    features_path <- paste0(fullpath, ".features")
+    features_path <- paste0(fullpath, "_features.Rdata")
     
     use_cache <- cached && file.exists(fasta_path) && file.exists(features_path)
     if (!use_cache) {
       reportf("Parsing GenBank file %s.", fullpath)
       gbk <- genbank::parse_genbank(fullpath)
-      tnseq$features[[genome]] <- create_features_table(gbk)
+      features <- create_features_table(gbk)
+      GenomeInfoDb::seqlevels(features) <- genome
+      tnseq$features[[genome]] <- features
       tnseq$genome_sequences[[genome]] <- gbk$sequence
       reportf("Found %i bases, %i genes, %i transposon sites",
-              #GenomicRanges::seqlengths(tnseq$features[[genome]])[1],
               length(tnseq$genomic_sequences[[genome]]),
               length(tnseq$features[[genome]]),
               sum(tnseq$features[[genome]]$sites))
       
       reportf("Writing features table to %s.", features_path)
-      features <- tnseq$features[[genome]]
-      readr::write_csv(data.frame(names=names(features),
-                                  seqnames=GenomicRanges::seqnames(features),
-                                  start=GenomicRanges::start(features),
-                                  end=GenomicRanges::end(features),
-                                  strand=GenomicRanges::strand(features),
-                                  sites=features$sites,
-                                  name=features$name,
-                                  product=features$product,
-                                  stringsAsFactors=F),
-                       path=features_path)
+      save(features, file=features_path)
       
       reportf("Writing FASTA sequence file to %s.", fasta_path)
       writeLines(c(paste0(">", genome), 
@@ -104,23 +127,13 @@ load_genomes <- function(tnseq, cached=T) {
     } else {
       # load genome sequence
       reportf("Loading genome sequence from %s.", fasta_path)
-      seq <-readLines(fasta_path)[2]
+      seq <- readLines(fasta_path)[2]
       tnseq$genome_sequences[[genome]] <- Biostrings::DNAString(seq)
       
       # load features table
       reportf("Loading features table from %s.", features_path)
-      feats <- readr::read_csv(features_path, col_names=T, col_types="cciicicc")
-      iranges <- IRanges::IRanges(start=feats$start,
-                                  end=feats$end)
-      gr <- GenomicRanges::GRanges(ranges=iranges, 
-                                   strand=feats$strand,
-                                   sites=feats$sites,
-                                   name=feats$name,
-                                   product=feats$product,
-                                   seqnames=feats$seqnames)
-      names(gr) <- feats$names
-      #GenomicRanges::seqlengths(gr) <- length(tnseq$genome_sequences[[genome]])
-      tnseq$features[[genome]] <- gr
+      load(features_path)
+      tnseq$features[[genome]] <- features
     }
     unindent_report()
   }
