@@ -45,6 +45,7 @@ split_inputs_ <- function(input_file,
                           barcodes,
                           barcode_start=10,
                           barcode_end=15,
+                          read_start=barcode_end+1,
                           max_reads=Inf,
                           fail_file=NA,
                           output_tnq_fails=FALSE,
@@ -143,6 +144,7 @@ split_inputs_ <- function(input_file,
     # see if this yield contains enough reads to stop
     if (total_reads > max_reads) {
       fq <- fq[1:(length(fq) - (total_reads - max_reads))]
+      total_reads <- max_reads
     }
     
     barcode_strings <- fq %>%
@@ -164,8 +166,8 @@ split_inputs_ <- function(input_file,
                                              starting.at=starting.at)
         argmins <- apply(edits, 2, which.min)
         if (!output_untrimmed) {
-          cutat <- ifelse(argmins < barcode_end+2, barcode_end+1, argmins-1)
-          reads %<>% ShortRead::narrow(start=barcode_end+1, end=cutat)
+          cutat <- ifelse(argmins < read_start, read_start, argmins-1)
+          reads %<>% ShortRead::narrow(start=read_start, end=cutat)
         }
         passing <- argmins >= tn_params$min_pos && argmins <= tn_params$max_pos
         if (output_tnq_fails) {
@@ -173,7 +175,7 @@ split_inputs_ <- function(input_file,
         }
         reads <- reads[passing]
       } else {
-        reads %<>% ShortRead::narrow(start=barcode_end+1, end=default_cut)
+        reads %<>% ShortRead::narrow(start=read_start, end=default_cut)
       }
       stats[code,"matched_tn"] <- stats[code,"matched_tn"] + length(reads)
       
@@ -197,9 +199,13 @@ split_inputs_ <- function(input_file,
     }
     
     # exit if we've read enough reads
-    if (total_reads >= max_reads) break
+    if (total_reads >= max_reads) {
+      break
+    } 
   }
   close(streamer)
+  
+  print(total_reads)
   
   if (collapse) {
     # dump hashes

@@ -2,9 +2,10 @@
 #' @export
 split_inputs_rnatagseq <- function(rtseq, ...) {
   rtseq %>% split_inputs(match_transposon=F, 
-                         barcode_start=1, 
+                         barcode_start=2, 
                          barcode_end=6, 
-                         default_cut=40, 
+                         read_start=11,
+                         default_cut=51, 
                          collapse=F, 
                          output_format="fasta",
                          ...)
