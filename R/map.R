@@ -1,6 +1,6 @@
 
 BOWTIE_CMD <- "~/bowtie/bowtie"
-BOWTIE_OPTS <- "-f -n 1 --all -y -p 2"
+BOWTIE_OPTS <- "-f -n 3 -l 60 -m 1 -p 2"
 INDEX_PATH <- "~/seqdata/index/"
 BOWTIE_BUILD_CMD <- "~/bowtie/bowtie-build"
 
@@ -45,7 +45,7 @@ load_mapfile <- function(filename) {
     dplyr::mutate(duplicated=n() > 1)
   n_dup <- nrow(reads[!reads$duplicated, ])
   
-  print((n_dup_orig - n_dup) / n_dup_orig * 100)
+#  print((n_dup_orig - n_dup) / n_dup_orig * 100)
   
   return(reads[!reads$duplicated, ])
 }

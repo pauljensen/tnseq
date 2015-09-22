@@ -41,10 +41,10 @@ transposons <- list(
 
 
 split_inputs_ <- function(input_file,
+                          output_files,
                           barcodes,
                           barcode_start=10,
                           barcode_end=15,
-                          output_files,
                           max_reads=Inf,
                           fail_file=NA,
                           output_tnq_fails=FALSE,
@@ -56,7 +56,8 @@ split_inputs_ <- function(input_file,
                           
                           output_format="fasta",
                           output_untrimmed=FALSE,
-                          collapse=T,
+                          output_fails=FALSE,
+                          collapse=TRUE,
                           min_quality=NA) {
   
   # ============= transposon matching =============
@@ -83,8 +84,9 @@ split_inputs_ <- function(input_file,
   # ============= output file names =============
   if (length(output_files) == 1 && is.null(names(output_files))) {
     # path prefix given; create names
-    output_files <- paste0(check_path_ending(output_files),
-                           input_file, "_",
+    output_files <- paste0(output_files,
+                           basename(input_file),
+                           "_",
                            names(barcodes),
                            ".", output_format)
     names(output_files) <- names(barcodes)
@@ -102,11 +104,15 @@ split_inputs_ <- function(input_file,
   # touch all files first
   outputf <- function(reads, filename) {
     if (collapse) {
-      # add to hashes
+      keys <- reads %>% ShortRead::sread() %>% as.character()
+      if (!is.null(tn_params$append_seq) && !is.na(tn_params$append_seq)) {
+        keys %<>% paste0(tn_params$append_seq)
+      }
+      add_keys(filename, keys)
     } else if (output_format == "fasta") {
       ShortRead::writeFasta(reads, filename, mode="a")
     } else {
-      ShortRead::writeFastq(reads, filename, mode="a")
+      ShortRead::writeFastq(reads, filename, mode="a", compress=F)
     }
   }
   
@@ -128,27 +134,27 @@ split_inputs_ <- function(input_file,
   total_reads <- 0
   break_at_end <- FALSE
   
-  streamer <- ShortRead::FastqStreamer(fastq)
+  streamer <- ShortRead::FastqStreamer(input_file)
   repeat {
     fq <- ShortRead::yield(streamer)
+    if (length(fq) == 0) break
     
-    # see if this yield contains enough reads to stop
-    if (total_reads + length(fq) >= max_reads) {
-      fq <- fq[1:(max_reads - total_reads)]
-      break_at_end <- TRUE  # stop after this iteration
-    }
     total_reads <- total_reads + length(fq)
+    # see if this yield contains enough reads to stop
+    if (total_reads > max_reads) {
+      fq <- fq[1:(length(fq) - (total_reads - max_reads))]
+    }
     
     barcode_strings <- fq %>%
       ShortRead::narrow(start=barcode_start, end=barcode_end) %>%
       ShortRead::sread()
     assignments <- match_barcodes(barcode_strings, barcodes)
     for (code in names(barcodes)) {
-      reads <- fq[assignments[ ,barcodes(code)]]
+      reads <- fq[assignments[ ,barcodes[code]]]
       stats[code,"reads"] <- stats[code,"reads"] + length(reads)
       
-      if (match_transposon) {
-        read_length <- width(reads[1])
+      if (match_transposon && length(reads) > 0) {
+        read_length <- ShortRead::width(reads[1])
         start_pos <- 1  # match across entire read
         n_sites <- read_length - start_pos - length(tn_params$seq) + 2
         site_counts <- integer(n_sites)
@@ -157,7 +163,7 @@ split_inputs_ <- function(input_file,
                                              ShortRead::sread(reads),
                                              starting.at=starting.at)
         argmins <- apply(edits, 2, which.min)
-        if (!output_trimmed) {
+        if (!output_untrimmed) {
           cutat <- ifelse(argmins < barcode_end+2, barcode_end+1, argmins-1)
           reads %<>% ShortRead::narrow(start=barcode_end+1, end=cutat)
         }
@@ -165,33 +171,48 @@ split_inputs_ <- function(input_file,
         if (output_tnq_fails) {
           outputf(reads[!passing], fail_files[code])
         }
-        outputf(reads[passing], output_files[code])
-        
+        reads <- reads[passing]
       } else {
-        reads %<>% ShortRead::narrow(start=16, end=28)
+        reads %<>% ShortRead::narrow(start=barcode_end+1, end=default_cut)
       }
       stats[code,"matched_tn"] <- stats[code,"matched_tn"] + length(reads)
       
-      if (!is.na(quality)) {
+      if (!is.na(min_quality) && length(reads) > 0) {
         # filter reads for quality
-        mean_quality <- rowMeans(as(quality(reads), "matrix"), na.rm=T)
-        reads <- reads[mean_quality > quality]
+        mean_quality <- rowMeans(as(ShortRead::quality(reads), "matrix"), na.rm=T)
+        reads <- reads[mean_quality > min_quality]
       }
       stats[code,"quality"] <- stats[code,"quality"] + length(reads)
       
-      keys <- reads %>% ShortRead::sread() %>% as.character() %>% paste0("TA")
-      add_keys(code, keys)
+      # write the reads (or add to hashtable if collapse)
+      if (length(reads) > 0) {
+        outputf(reads, output_files[code])
+      }
     }
     
-    if (dump_fails) {
+    if (output_fails) {
       fails <- colSums(assignments) == 0
-      add_keys("FAILS", fq %>% ShortRead::sread() %>% as.character())
+      all_reads <- fq %>% ShortRead::sread()
+      outputf(fail_file, all_reads[fails])
     }
     
     # exit if we've read enough reads
-    if (break_at_end) break
+    if (total_reads >= max_reads) break
   }
   close(streamer)
+  
+  if (collapse) {
+    # dump hashes
+    for (hash in hashes) {
+      write_hash_to_file(hash, path.expand(hash))
+    }
+    erase_hashes(hashes)
+  }
+  
+  rownames(stats) <- NULL
+  df <- dplyr::data_frame(input=basename(input_file), barcode=names(barcodes), 
+                          file=output_files)
+  return(cbind(df, stats))
 }
     
     
@@ -204,8 +225,7 @@ split_inputs_ <- function(input_file,
 #' @param tnseq A tnseq object.
 #' @return A tnseq object with updated filelog.
 #' @export
-split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE,
-                         match_transposon_sequence=TRUE, quality=NA) {
+split_inputs <- function(tnseq, ...) {
   barcodes <- tnseq$barcodes
   
   split_fastq_file <- function(input, fastq) {
@@ -345,12 +365,13 @@ split_inputs <- function(tnseq, max_cycles=NA, dump_fails=FALSE,
     df <- dplyr::data_frame(input=input, barcode=names(barcodes), file=files)
     return(cbind(df, stats))
   }
-  
-  dfs <- parallel::mclapply(seq_along(tnseq$filelog$input$file), 
-                function(i) split_fastq_file(tnseq$filelog$input$input[i],
-                                             tnseq$filelog$input$file[i]))
+
+  dfs <- parallel::mclapply(seq_along(tnseq$filelog$input$file),
+                            function(i) split_inputs_(tnseq$filelog$input$file[i],
+                                                      get_path(tnseq, dir="split"),
+                                                      barcodes, ...))
   tnseq$filelog$split <- do.call(rbind, dfs)
-  
+
   return(tnseq)
 }
 

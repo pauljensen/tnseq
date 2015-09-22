@@ -161,3 +161,36 @@ create_bowtie_indexes <- function(tnseq) {
   unindent_report()
 }
 
+#' @export
+add_gene_metadata_ <- function(df, features) {
+  features <- GenomicRanges::mcols(do.call(c, unname(features)), use.names=T)
+  dplyr::bind_cols(df,
+                   features[df$gene, ] %>% 
+                     as.list() %>% 
+                     dplyr::as_data_frame())
+}
+
+#' @export
+add_gene_metadata <- function(tnseq, slots=c("insertions", "aggregate")) {
+  for (slot in slots) {
+    if (!is.null(tnseq[[slot]])) {
+      tnseq[[slot]] <- add_gene_metadata_(tnseq[[slot]], tnseq$features)
+    }
+  }
+  return(tnseq)
+}
+
+#' @export
+remove_nongenic_ <- function(df) {
+  df[!is.na(df$gene), ]
+}
+
+#' @export
+remove_nongenic <- function(tnseq, slots=c("insertions", "aggregate")) {
+  for (slot in slots) {
+    if (!is.null(tnseq[[slot]])) {
+      tnseq[[slot]] <- remove_nongenic_(tnseq[[slot]])
+    }
+  }
+  return(tnseq)
+}
